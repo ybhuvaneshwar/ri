@@ -1,0 +1,27 @@
+{
+  "summary": "Verified Zoho Catalyst deploy fix. Ran `npm install` in isolated temp dirs (copied only package.json ± .npmrc). WITH .npmrc: exit 0 in 26s, 1733 packages installed, package-lock.json produced, no ERESOLVE. WITHOUT .npmrc: STILL FAILS with ERESOLVE — but a DIFFERENT conflict (react@19.0.0 vs react-day-picker@8.10.1 peer `react@^16.8.0 || ^17.0.0 || ^18.0.0`). The original date-fns vs react-day-picker conflict is fully resolved. Frontend regression: login (admin@nammakavacha.ai/Admin@123) succeeds, dashboard renders KPIs (4,891 FIRs, 2,189 investigations, weekly crime trend chart with 2026-04-13..2026-12-28 date axis), header shows 'SAT, JUL 25, 2026' — date-fns v3 works fine with the shadcn Calendar/react-day-picker stack. ⌘K command palette opens with module list. No date-fns runtime errors in console.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/test_reports/iteration_5.json"],
+  "action_items": [
+    "IMPORTANT: The main-agent's assumption that '.npmrc can be removed because date-fns is now compatible with react-day-picker@8.10.1' is INCORRECT. Removing .npmrc still fails with ERESOLVE due to a SECOND, previously-masked peer conflict: react@19.0.0 project vs react-day-picker@8.10.1 which peers `react@^16.8.0 || ^17.0.0 || ^18.0.0`. The .npmrc `legacy-peer-deps=true` is now REQUIRED (not defensive) for `npm install` to succeed on Zoho Catalyst. Keep .npmrc committed. Optionally upgrade to react-day-picker@9.x (supports react@19) to make .npmrc truly optional.",
+    "MINOR CODE-QUALITY: /app/frontend/package.json has TWO `resolutions` keys — lines 5-7 (`pako`) and lines 117-160 (large block). Duplicate JSON object keys mean the second silently overrides the first, so the `pako: ^2.1.0` resolution is being DROPPED. Merge `pako` into the bottom `resolutions` block.",
+    "MINOR (pre-existing, unrelated to this fix): Radix DialogContent used for ⌘K palette missing DialogTitle — accessibility console warning. Wrap in VisuallyHidden or add a title."
+  ],
+  "critical_code_review_comments": [
+    "Duplicate `resolutions` key in package.json silently drops `pako: ^2.1.0` pin (JSON spec: later key wins).",
+    "`.npmrc` legacy-peer-deps flag is load-bearing for deploys until react-day-picker is upgraded to 9.x — document this or upgrade rdp."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (not tested per request)", "frontend": "100% (login + dashboard + ⌘K + date rendering)"},
+  "test_credentials": "admin@nammakavacha.ai / Admin@123 (from /app/memory/test_credentials.md) — works",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Deploy fix (date-fns downgrade to ^3.6.0 + .npmrc) is verified. If main agent upgrades react-day-picker to 9.x, re-run: `cd /tmp/x && cp /app/frontend/package.json . && npm install` (WITHOUT .npmrc copied) and it should exit 0. Currently that still errors due to react@19 vs rdp@8 peer.",
+  "rca of the issue": "Zoho Catalyst runs `npm install` (not yarn) and does not honor project yarn.lock, so npm's stricter peer-dep resolver hit ERESOLVE. Root cause of original failure: date-fns@4.1.0 incompatible with react-day-picker@8.10.1 peer `date-fns@^2.28.0 || ^3.0.0`. Fix (downgrade date-fns to ^3.6.0) resolves that specific conflict — confirmed by isolated `npm install` succeeding with .npmrc. HOWEVER a secondary peer conflict (react@19 vs rdp@8's react@^18 peer) remains hidden behind `legacy-peer-deps=true` in .npmrc. So .npmrc must stay committed for deploy to pass. Runtime is unaffected: react-day-picker@8.10.1 works fine at runtime with react@19 (verified via dashboard/date rendering)."
+}
