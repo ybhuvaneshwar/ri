@@ -1,0 +1,43 @@
+{
+  "summary": "First-finish smoke test of Namma Kavacha. Backend fully healthy (auth, cases=80, KPIs, network=108/165, Kavacha SSE streams real Claude Sonnet 4.5 tokens end-to-end). Frontend core flows (landing, login, dashboard KPIs, cases table, analytics, predictions, network 3D, Kavacha AI streaming chat) render and function. Role-based redirect for analyst -> /app/users works. HOWEVER: two pages (Map Intelligence and Users & Roles) crash the entire React tree due to an async useEffect returning a Promise ('destroy is not a function' pageerror), producing a blank screen. These are HIGH-priority blockers before first finish.",
+  "tested_scope": ["frontend", "backend", "auth", "integration"],
+  "passed": [
+    "Backend POST /api/auth/login (admin) returns token + user",
+    "Backend GET /api/dashboard/kpis returns {total:80, open:48, critical:3, chargesheeted:18}",
+    "Backend GET /api/cases returns 80 seeded FIRs",
+    "Backend GET /api/network/graph returns 108 nodes / 165 links",
+    "Backend POST /api/kavacha/chat SSE streams real Claude Sonnet 4.5 tokens and terminates with done:true + session_id",
+    "Landing page renders with landing-logo, hero-primary-cta, landing-login-cta and 3D hero canvas",
+    "Login: demo-admin button auto-fills + login-submit redirects to /app/dashboard",
+    "Dashboard KPI tiles present (kpi-total=80, kpi-open=48, kpi-critical=3, kpi-chargesheeted=18) with CountUp + timeline chart + priority alerts + district & category panels",
+    "Cases list renders 80-row table with cases-search-input",
+    "Kavacha AI page: kavacha-input + kavacha-send-btn produce a full streamed assistant reply rendered in UI",
+    "Analytics page renders 3 recharts SVG charts",
+    "Predictions page renders content (5.8KB body)",
+    "Criminal Network page renders canvas (react-force-graph-3d)",
+    "Role restriction verified: analyst on /app/users -> redirected to /app/dashboard"
+  ],
+  "failed": [
+    {
+      "area": "frontend/MapIntel (/app/map)",
+      "issue": "Page crashes entire app subtree; blank navy screen; no .leaflet-container, no layer-cases / layer-predictions toggles rendered. Console shows 'Map container is already initialized' + PAGEERR 'destroy is not a function' + React warning about async useEffect returning a Promise.",
+      "evidence": "leaflet=0, layer-cases=0, layer-predictions=0; body text length 0; pageerror 'destroy is not a function'",
+      "priority": "HIGH"
+    },
+    {
+      "area": "frontend/Users (/app/users) as admin",
+      "issue": "Page crashes entire app subtree; body length = 0; no user-form-* fields render; sidebar also disappears (whole tree unmounts). Same 'destroy is not a function' pageerror and 'useEffect must not return a Promise' warning.",
+      "evidence": "user-form-name=0, user-form-submit=0, body inner_text length=0; PAGEERR 'destroy is not a function'",
+      "priority": "HIGH"
+    }
+  ],
+  "action_items": [
+    "Fix all `useEffect(async () => { ... })` occurrences in the codebase. React requires useEffect to return either undefined or a cleanup function, not a Promise. Wrap async logic in an inner function, e.g. `useEffect(() => { (async () => { ... })(); }, [...]);`. Grep suspects: /app/frontend/src/pages/Users.jsx, /app/frontend/src/pages/MapIntel.jsx (both crash), and any other page using this pattern.",
+    "For MapIntel.jsx also address 'Map container is already initialized' — ensure the MapContainer is not double-mounted in React StrictMode (use a stable key or conditionally render only when mounted, or add a cleanup).",
+    "After fix, retest /app/map (expect .leaflet-container, layer-cases, layer-predictions) and /app/users (expect user-form-name/email/password/role/submit + admin can create/list/delete users).",
+    "Remaining untested due to time: Reports export buttons (export-pdf-btn / export-xlsx-btn), Uploads page UI, Audit log, Command palette Ctrl+K, notifications bell, Case detail 'Generate AI Report' button, supervisor role restrictions on /app/uploads and /app/users. Recommend covering these in the full testing pass after HIGH bugs are fixed."
+  ],
+  "success_rate": {"backend": "100%", "frontend": "~80% (Map + Users pages crash)"},
+  "retest_needed": true,
+  "full_testing_deferred": true
+}
