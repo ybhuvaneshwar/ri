@@ -11,7 +11,7 @@ export default function Users() {
   const [creating, setCreating] = useState(false);
 
   const load = () => api.get("/users").then(({data}) => setUsers(data));
-  useEffect(load, []);
+  useEffect(() => { load(); }, []);
 
   const create = async () => {
     if (!form.email || !form.name || !form.password) return toast.error("Fill required fields");

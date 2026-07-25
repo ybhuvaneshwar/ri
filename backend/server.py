@@ -258,7 +258,7 @@ async def create_user(payload: UserCreate, user: dict = Depends(require_role("ad
     u["password"] = hash_pw(payload.password)
     await db.users.insert_one(u)
     await log_audit(user, "create", "user", u["id"], f"Created {payload.email}")
-    u.pop("password"); return u
+    u.pop("password", None); u.pop("_id", None); return u
 
 @api.delete("/users/{uid}")
 async def delete_user(uid: str, user: dict = Depends(require_role("admin"))):
@@ -311,6 +311,7 @@ async def create_case(payload: dict, user: dict = Depends(require_role("admin","
     c = Case(**payload).model_dump()
     await db.cases.insert_one(c)
     await log_audit(user, "create", "case", c["id"], c["fir_no"])
+    c.pop("_id", None)
     return c
 
 @api.patch("/cases/{cid}")

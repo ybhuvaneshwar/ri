@@ -14,10 +14,10 @@ const queryClient = new QueryClient({
 });
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
+// Note: StrictMode intentionally disabled — react-leaflet's MapContainer
+// double-mounts under StrictMode in dev, causing "Map is already initialized".
 root.render(
-  <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <App />
-    </QueryClientProvider>
-  </React.StrictMode>,
+  <QueryClientProvider client={queryClient}>
+    <App />
+  </QueryClientProvider>,
 );

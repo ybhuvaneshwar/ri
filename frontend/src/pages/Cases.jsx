@@ -18,7 +18,7 @@ export default function Cases() {
     if (statusF) params.set("status", statusF);
     api.get(`/cases?${params.toString()}`).then(({data}) => setItems(data)).finally(()=>setLoading(false));
   };
-  useEffect(load, []); // eslint-disable-line
+  useEffect(() => { load(); }, []); // eslint-disable-line
 
   const districts = useMemo(() => Array.from(new Set(items.map(i => i.district))), [items]);
 
