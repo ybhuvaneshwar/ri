@@ -1,0 +1,144 @@
+{
+  "theme": "dark-only",
+  "typography": {
+    "fonts": {
+      "primary": "Satoshi, sans-serif",
+      "fallback": "Inter, sans-serif",
+      "mono": "JetBrains Mono, monospace"
+    },
+    "scale": {
+      "h1": "text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tighter",
+      "h2": "text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight",
+      "h3": "text-xl sm:text-2xl font-semibold",
+      "h4": "text-lg sm:text-xl font-medium",
+      "body": "text-base leading-relaxed text-slate-300",
+      "label": "text-xs uppercase tracking-[0.2em] font-semibold text-slate-400"
+    }
+  },
+  "colors": {
+    "background": {
+      "primary": "#040914",
+      "secondary": "#0B132B"
+    },
+    "accent": {
+      "cyber_cyan": "#00E5FF"
+    },
+    "text": {
+      "primary": "#FFFFFF",
+      "muted": "#94A3B8"
+    },
+    "status": {
+      "success": "#10B981",
+      "warning": "#F59E0B",
+      "danger": "#EF4444"
+    }
+  },
+  "visual_enhancers": {
+    "glassmorphism": {
+      "container": "bg-[#0B132B]/60 backdrop-blur-xl border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1),_0_8px_32px_rgba(0,0,0,0.4)] rounded-2xl",
+      "card": "bg-[#0B132B]/40 backdrop-blur-md border border-white/5 rounded-2xl hover:bg-[#0B132B]/60 transition-colors shadow-lg",
+      "panel_inner": "bg-[#040914]/50 rounded-xl border border-white/5"
+    }
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-[#00E5FF] text-[#040914] font-semibold px-4 py-2 rounded-lg hover:bg-[#33EEFF] transition-all shadow-[0_0_15px_rgba(0,229,255,0.4)]",
+      "secondary": "bg-white/5 text-white border border-white/10 px-4 py-2 rounded-lg hover:bg-white/10 transition-all",
+      "ghost": "text-slate-300 hover:text-white hover:bg-white/5 px-4 py-2 rounded-lg transition-all",
+      "danger": "bg-[#EF4444]/10 text-[#EF4444] border border-[#EF4444]/20 px-4 py-2 rounded-lg hover:bg-[#EF4444]/20 transition-all"
+    },
+    "inputs": {
+      "default": "bg-[#040914]/50 border border-white/10 text-white placeholder-slate-500 rounded-lg px-4 py-2 focus:ring-2 focus:ring-[#00E5FF]/50 focus:border-[#00E5FF] outline-none transition-all"
+    },
+    "tables": {
+      "container": "w-full text-left border-collapse",
+      "header": "text-xs uppercase tracking-[0.2em] text-slate-400 border-b border-white/10 pb-3 font-semibold",
+      "row": "border-b border-white/5 hover:bg-white/[0.02] transition-colors",
+      "cell": "py-3 text-sm text-slate-300"
+    },
+    "nav": {
+      "container": "sticky top-0 z-50 bg-[#040914]/80 backdrop-blur-xl border-b border-white/10",
+      "link": "text-sm font-medium text-slate-300 hover:text-white transition-colors",
+      "link_active": "text-[#00E5FF] font-semibold"
+    },
+    "modals": {
+      "overlay": "fixed inset-0 bg-[#040914]/80 backdrop-blur-sm z-50",
+      "content": "fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg bg-[#0B132B]/90 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl p-6 z-50"
+    }
+  },
+  "layout_grids": {
+    "dashboard_density": "Bloomberg Terminal information density with Linear/Vercel-level polish. High density but perfectly organized.",
+    "dashboard_grid": "grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 md:gap-6",
+    "widget_spans": {
+      "kpi": "col-span-1",
+      "chart": "col-span-2 row-span-2 xl:col-span-3",
+      "feed": "col-span-1 row-span-2 xl:col-span-2"
+    }
+  },
+  "motion": {
+    "landing": "GSAP scroll reveals. Momentum-based scrolling via Lenis for a premium feel.",
+    "in_app": "Framer Motion for layout transitions, modal reveals, and smooth state changes.",
+    "kpi_counters": "Count-up animations for analytical numbers.",
+    "loading": "Skeleton loaders + dotlottie-wc branded loader for operations > 300ms."
+  },
+  "3d_libraries": {
+    "hero_network": "Three.js (react-three-fiber). A glowing, interconnected cyber-network visualization.",
+    "criminal_network": "react-force-graph-3d for exploring relational webs between entities.",
+    "map_intelligence": "deck.gl + react-map-gl (Leaflet/Mapbox) for 3D-tilt heatmap prediction."
+  },
+  "accessibility": {
+    "motion": "Respect 'prefers-reduced-motion'. Disable high-intensity animations if true.",
+    "contrast": "Ensure WCAG AA compliance (4.5:1 ratio minimum). Use APCA for text on glass.",
+    "navigation": "Maximum 3 clicks to reach any core function.",
+    "focus": "Clear focus states on all interactive elements (focus:ring-2 focus:ring-[#00E5FF]).",
+    "testing": "All interactive elements MUST include a 'data-testid' attribute (e.g., data-testid='fir-search-button')."
+  },
+  "media": {
+    "image_urls": [
+      {
+        "url": "https://images.unsplash.com/photo-1639322537231-2f206e06af84?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1MDZ8MHwxfHNlYXJjaHw0fHxjeWJlcnNlY3VyaXR5JTIwbmV0d29yayUyMGRhcmt8ZW58MHx8fHwxNzg1MDAwNDg3fDA&ixlib=rb-4.1.0&q=85",
+        "description": "Abstract cybersecurity network nodes for hero or background patterns",
+        "category": "backgrounds"
+      },
+      {
+        "url": "https://images.pexels.com/photos/5380603/pexels-photo-5380603.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "description": "Dark room setup with monitors, represents command center context",
+        "category": "context"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1651439795856-0eabe1bf2ee8?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDJ8MHwxfHNlYXJjaHwxfHxiZW5nYWx1cnUlMjBjaXR5JTIwbmlnaHR8ZW58MHx8fHwxNzg1MDAwNDg3fDA&ixlib=rb-4.1.0&q=85",
+        "description": "Bengaluru city night scape, can be used for contextual backgrounds or maps",
+        "category": "context"
+      }
+    ]
+  },
+  "instructions_to_main_agent": [
+    "Design specifically for dark mode (Deep Navy #040914).",
+    "Import Satoshi font from Fontshare in CSS.",
+    "Build the landing page with pure HTML + Tailwind to allow maximum creative freedom with GSAP and Three.js.",
+    "Use Shadcn UI for the dashboard, heavily styled to match the glassmorphic, enterprise-command-center aesthetic (border-white/10, bg-opacity).",
+    "Integrate cmdk for the Command Palette (⌘K) to quickly jump between FIRs, Cases, and Map.",
+    "In the Executive Command Center, build dense metric cards (KPIs, sparklines) ensuring they fit perfectly without feeling cluttered.",
+    "For Kavacha AI Copilot, build a chat interface that supports citations/references styling.",
+    "Respect the 'Bloomberg Terminal + Linear' density requirement. Do not use excessive padding inside data tables.",
+    "Do not use fully transparent backgrounds on dropdowns or overlays. Always use a solid dark base or heavy backdrop-blur (bg-[#0B132B]/80).",
+    "Ensure the 'data-testid' attribute is on all interactive and key informational elements.",
+    "You have .js files not .tsx file, so apply these guidelines to standard JS/JSX components."
+  ],
+  "UNIVERSAL_GUIDELINES_FOR_MAIN_AGENT": [
+    "Avoid generic, 'on distribution' outputs. Make creative, distinctive frontends that surprise and delight.",
+    "Dark colors look good when used independently without gradients. DO NOT use dark colors as gradients.",
+    "Don't make generic centered layouts, simplistic gradients, and uniform styling.",
+    "Create depth through layered design elements with z-index hierarchy.",
+    "Use glass-morphism effects with backdrop filters (12-24px blur).",
+    "You MUST NOT apply universal transition. Eg: transition: all. Always add transitions for specific interactive elements like button, input excluding transforms.",
+    "You MUST NOT center align the app container, ie do not add .App { text-align: center; } in the css file.",
+    "Always use modern button styles like pill-shaped, or sharp button with interaction animations & color relevant to the app style.",
+    "NEVER use AI assistant Emoji characters like 🤖🧠💭💡🔮🎯 etc for icons.",
+    "Every interaction needs micro-animations - hover states, transitions, parallax effects, and entrance animations.",
+    "Use 2-3x more spacing than feels comfortable, except in data-dense tables where Bloomberg Terminal density is required.",
+    "Subtle grain textures, noise overlays, custom cursors, selection states, and loading animations separate good from extraordinary.",
+    "Prioritize using pre-existing components from src/components/ui when applicable.",
+    "Use `sonner` for toasts, located in /app/src/components/ui/sonner.js or sonner.jsx."
+  ]
+}
