@@ -71,7 +71,7 @@ export default function AiSidePanel({ open, onOpenChange }) {
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="bg-[#0B132B]/95 backdrop-blur-2xl border-l border-white/10 text-white w-[440px] sm:max-w-[440px] p-0 flex flex-col" data-testid="ai-panel">
+      <SheetContent side="right" className="bg-[#0B132B]/95 backdrop-blur-2xl border-l border-white/10 text-white w-[440px] sm:max-w-[440px] p-0 flex flex-col" data-testid="ai-panel" aria-describedby={undefined}>
         <SheetHeader className="p-4 border-b border-white/10 flex-row items-center justify-between space-y-0">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-[#00E5FF]/15 border border-[#00E5FF]/40 flex items-center justify-center">
