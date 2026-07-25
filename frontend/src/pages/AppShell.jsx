@@ -75,7 +75,7 @@ export default function AppShell() {
   return (
     <div className="min-h-screen flex text-white">
       <aside className="w-64 shrink-0 border-r border-white/10 bg-[#040914]/90 backdrop-blur-xl min-h-screen sticky top-0 flex flex-col">
-        <Link to="/" className="flex items-center gap-2.5 px-5 py-5 border-b border-white/10" data-testid="app-logo">
+        <Link to="/app/dashboard" className="flex items-center gap-2.5 px-5 py-5 border-b border-white/10" data-testid="app-logo">
           <div className="w-9 h-9 rounded-lg bg-[#00E5FF]/15 border border-[#00E5FF]/40 flex items-center justify-center">
             <Shield className="w-5 h-5 text-[#00E5FF]" />
           </div>
