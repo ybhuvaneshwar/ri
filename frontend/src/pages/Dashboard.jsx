@@ -18,13 +18,19 @@ export default function Dashboard() {
   const [districts, setDistricts] = useState([]);
   const [cats, setCats] = useState([]);
   const [alerts, setAlerts] = useState([]);
+  const [now, setNow] = useState(new Date());
 
   useEffect(() => {
     api.get("/dashboard/kpis").then(({data}) => setKpis(data));
     api.get("/analytics/timeline?days=120").then(({data}) => setTimeline(data));
-    api.get("/analytics/by-district").then(({data}) => setDistricts(data));
+    api.get("/analytics/by-district").then(({data}) => setDistricts(data.slice(0, 10)));
     api.get("/analytics/by-category").then(({data}) => setCats(data));
     api.get("/notifications").then(({data}) => setAlerts(data));
+  }, []);
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
   }, []);
 
   return (
@@ -34,7 +40,10 @@ export default function Dashboard() {
           <div className="label-eyebrow text-[#00E5FF]">Executive Command Center</div>
           <h1 className="text-3xl font-bold tracking-tight mt-1">Situational awareness — Karnataka</h1>
         </div>
-        <div className="text-xs text-slate-400">Updated live · <span className="text-[#00E5FF] font-mono">{new Date().toLocaleTimeString()}</span></div>
+        <div className="text-xs text-slate-400 text-right">
+          <div>Updated live · <span className="text-[#00E5FF] font-mono text-sm" data-testid="live-clock">{now.toLocaleTimeString()}</span></div>
+          <div className="text-[10px] uppercase tracking-widest text-slate-500 mt-0.5">{now.toLocaleDateString(undefined,{weekday:"short",year:"numeric",month:"short",day:"numeric"})}</div>
+        </div>
       </div>
 
       {/* KPIs */}

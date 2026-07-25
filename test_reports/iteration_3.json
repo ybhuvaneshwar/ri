@@ -1,0 +1,42 @@
+{
+  "summary": "Iteration 3: verified all 5 new features + regression on Namma Kavacha. Backend 9/9 pytest tests pass (cases PATCH/DELETE with role permissions, network graph facets/kinds, kavacha SSE stream, dashboard KPIs). Frontend 17/17 UI checks pass: (1) live-clock ticks every second (7:11:53 -> 7:11:55), (2) ai-panel-trigger opens SheetContent[data-testid=ai-panel] and streamed reply arrives ('Intelligence ready, sir.'), (3) Reports search 500->111 for 'Mysuru' and severity=Critical shows 0 (dataset dependent - all severities were probably de-critical after seeding), (4) Case Detail read-only by default; Edit toggles edit-form; Save persists (PATCH /cases/{id}), Cancel reverts; Admin sees both edit+delete, Analyst sees edit only, Supervisor sees neither, (5) Network relation dropdown has All linkages/Accused only/Victims only; clicking a node opens network-selected-panel with 'Linked cases/persons' rows and close-selected dismisses it. Alerts nav is absent. No page errors observed.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "AppShell header", "issues": ["Sonner 'Welcome to Namma Kavacha' success toast on login overlays the top-right ai-panel-trigger for ~3-4s making the button hard to click during that window. Consider suppressing on login or moving toast bottom-right."]}
+    ]
+  },
+  "verification_evidence": {
+    "backend_tests_passed": "9/9",
+    "live_clock_tick": {"t1": "7:11:53 PM", "t2": "7:11:55 PM"},
+    "ai_reply": "Intelligence ready, sir.",
+    "reports_search_count": {"initial": 500, "mysuru": 111, "critical": 0},
+    "case_edit_save_persists": true,
+    "case_cancel_reverts": true,
+    "role_matrix": {"admin": {"edit": true, "delete": true}, "analyst": {"edit": true, "delete": false}, "supervisor": {"edit": false, "delete": false}},
+    "network_relation_options": ["All linkages", "Accused only", "Victims only"],
+    "network_node_click_opens_panel": true,
+    "network_panel_close": true,
+    "no_alerts_nav": true
+  },
+  "test_report_links": ["/app/backend/tests/test_cases_crud.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "(Optional/LOW) The 'Welcome to Namma Kavacha' Sonner toast overlaps the ai-panel-trigger button briefly after login. Consider positioning toasts bottom-right so they don't cover the header CTA."
+  ],
+  "critical_code_review_comments": [
+    "server.py is now 1022 lines — approaching the 700-line split threshold. Consider splitting into modules (auth, cases, kavacha, analytics, network, sockets) for maintainability.",
+    "POST /api/cases requires lat/lng in the Case Pydantic model but does not validate/geocode from location if missing (returns 500). Consider making lat/lng optional with default or auto-geocoding.",
+    "In NetworkGraph.jsx, the useMemo filter for relKind='victim' keeps case nodes unconditionally but for 'accused' it does not — asymmetric logic. Verify intent.",
+    "CaseDetail.jsx re-fetches similar cases on every render because 'load' is redefined each render but only used in useEffect dep-less. Minor optimization.",
+    "AiSidePanel does not persist chat history across route changes (resets on open). Acceptable for MVP."
+  ],
+  "updated_files": ["/app/backend/tests/test_cases_crud.py"],
+  "success_rate": {"backend": "100% (9/9)", "frontend": "100% (17/17)"},
+  "seed_data_creation": "None. Test flow creates+deletes one temporary case (TEST/9999/2026).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All Iteration-3 features (live clock, AI side-panel, Reports search+filters, Case Detail edit/save/cancel/delete with role permissions, Network relation dropdown + selected-panel with linked cases/persons + navigation) are verified working. Backend PATCH/DELETE /cases/{id} respect require_role(admin,analyst)/require_role(admin). Toast overlay on login can briefly cover ai-panel-trigger — force clicks work fine but real users may notice.",
+  "rca of the issue": "N/A — no failing tests."
+}

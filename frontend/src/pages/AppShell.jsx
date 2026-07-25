@@ -143,8 +143,8 @@ export default function AppShell() {
             </div>
           </div>
           <div className="flex items-center gap-2 relative">
-            <button onClick={() => setAiOpen(true)} className="btn-secondary text-xs inline-flex items-center gap-1.5" data-testid="ai-panel-trigger">
-              <Sparkles className="w-3.5 h-3.5 text-[#00E5FF]" /> {t("common.askKavacha")} <span className="font-mono text-[10px] text-slate-500 ml-1">⌘J</span>
+            <button onClick={() => setAiOpen(true)} className="btn-primary text-xs inline-flex items-center gap-1.5" data-testid="ai-panel-trigger" title="Ask Kavacha AI (⌘J)">
+              <Sparkles className="w-3.5 h-3.5" /> {t("common.askKavacha")} <span className="font-mono text-[10px] opacity-70 ml-1">⌘J</span>
             </button>
             <button onClick={() => setNotifOpen(v => !v)} className="relative p-2 rounded-lg border border-white/10 hover:border-[#00E5FF]/40 transition-colors" data-testid="notif-btn">
               <Bell className="w-4 h-4 text-slate-300" />
