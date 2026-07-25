@@ -50,7 +50,7 @@ export default function Analytics() {
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
               <XAxis dataKey="week" stroke="#94A3B8" fontSize={11} />
               <YAxis stroke="#94A3B8" fontSize={11} />
-              <Tooltip contentStyle={{background:"#0B132B", border:"1px solid rgba(0,229,255,0.3)"}} />
+              <Tooltip contentStyle={{background:"#0B132B", border:"1px solid rgba(0,229,255,0.3)", color:"#fff", borderRadius:8}} itemStyle={{color:"#fff"}} labelStyle={{color:"#00E5FF", fontWeight:600}} />
               <Area type="monotone" dataKey="count" stroke="#00E5FF" strokeWidth={2} fill="url(#grad1)" />
             </AreaChart>
           </ResponsiveContainer>
@@ -67,7 +67,7 @@ export default function Analytics() {
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
                 <XAxis dataKey="month" stroke="#94A3B8" fontSize={11} />
                 <YAxis stroke="#94A3B8" fontSize={11} />
-                <Tooltip contentStyle={{background:"#0B132B", border:"1px solid rgba(0,229,255,0.3)"}} />
+                <Tooltip contentStyle={{background:"#0B132B", border:"1px solid rgba(0,229,255,0.3)", color:"#fff", borderRadius:8}} itemStyle={{color:"#fff"}} labelStyle={{color:"#00E5FF", fontWeight:600}} />
                 <Legend wrapperStyle={{fontSize:11}} />
                 <Bar dataKey="critical" stackId="a" fill="#EF4444" name="Critical" />
                 <Bar dataKey="high" stackId="a" fill="#F97316" name="High" />
@@ -84,7 +84,7 @@ export default function Analytics() {
                 <Pie data={severities} dataKey="count" nameKey="severity" outerRadius={80} innerRadius={45}>
                   {severities.map((s,i) => <Cell key={i} fill={SEV_COLOR[s.severity] || COLORS[i]} />)}
                 </Pie>
-                <Tooltip contentStyle={{background:"#0B132B", border:"1px solid rgba(0,229,255,0.3)"}} />
+                <Tooltip contentStyle={{background:"#0B132B", border:"1px solid rgba(0,229,255,0.3)", color:"#fff", borderRadius:8}} itemStyle={{color:"#fff"}} labelStyle={{color:"#00E5FF", fontWeight:600}} />
                 <Legend wrapperStyle={{fontSize:11}} />
               </PieChart>
             </ResponsiveContainer>
@@ -102,7 +102,7 @@ export default function Analytics() {
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
                 <XAxis dataKey="status" stroke="#94A3B8" fontSize={11} />
                 <YAxis stroke="#94A3B8" fontSize={11} />
-                <Tooltip contentStyle={{background:"#0B132B", border:"1px solid rgba(0,229,255,0.3)"}} />
+                <Tooltip contentStyle={{background:"#0B132B", border:"1px solid rgba(0,229,255,0.3)", color:"#fff", borderRadius:8}} itemStyle={{color:"#fff"}} labelStyle={{color:"#00E5FF", fontWeight:600}} />
                 <Bar dataKey="count" fill="#10B981" radius={[4,4,0,0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -116,7 +116,7 @@ export default function Analytics() {
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
                 <XAxis type="number" stroke="#94A3B8" fontSize={11} />
                 <YAxis type="category" dataKey="station" stroke="#94A3B8" fontSize={10} width={100} />
-                <Tooltip contentStyle={{background:"#0B132B", border:"1px solid rgba(0,229,255,0.3)"}} />
+                <Tooltip contentStyle={{background:"#0B132B", border:"1px solid rgba(0,229,255,0.3)", color:"#fff", borderRadius:8}} itemStyle={{color:"#fff"}} labelStyle={{color:"#00E5FF", fontWeight:600}} />
                 <Bar dataKey="count" fill="#00E5FF" radius={[0,4,4,0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -134,7 +134,7 @@ export default function Analytics() {
                 <Pie data={cats} dataKey="count" nameKey="category" outerRadius={100} innerRadius={55}>
                   {cats.map((_,i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                 </Pie>
-                <Tooltip contentStyle={{background:"#0B132B", border:"1px solid rgba(0,229,255,0.3)"}} />
+                <Tooltip contentStyle={{background:"#0B132B", border:"1px solid rgba(0,229,255,0.3)", color:"#fff", borderRadius:8}} itemStyle={{color:"#fff"}} labelStyle={{color:"#00E5FF", fontWeight:600}} />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -175,7 +175,7 @@ export default function Analytics() {
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
                 <XAxis dataKey="district" stroke="#94A3B8" fontSize={9} interval={0} angle={-45} textAnchor="end" height={90} />
                 <YAxis stroke="#94A3B8" fontSize={11} />
-                <Tooltip contentStyle={{background:"#0B132B", border:"1px solid rgba(0,229,255,0.3)"}} />
+                <Tooltip contentStyle={{background:"#0B132B", border:"1px solid rgba(0,229,255,0.3)", color:"#fff", borderRadius:8}} itemStyle={{color:"#fff"}} labelStyle={{color:"#00E5FF", fontWeight:600}} />
                 <Bar dataKey="total" fill="#00E5FF" radius={[4,4,0,0]} />
                 <Bar dataKey="critical" fill="#EF4444" radius={[4,4,0,0]} />
               </BarChart>
@@ -192,7 +192,7 @@ export default function Analytics() {
                   <Pie data={gender.victims} dataKey="count" nameKey="gender" outerRadius={70}>
                     {gender.victims.map((_,i) => <Cell key={i} fill={i===0?"#00E5FF":i===1?"#EC4899":"#94A3B8"} />)}
                   </Pie>
-                  <Tooltip contentStyle={{background:"#0B132B", border:"1px solid rgba(0,229,255,0.3)"}} />
+                  <Tooltip contentStyle={{background:"#0B132B", border:"1px solid rgba(0,229,255,0.3)", color:"#fff", borderRadius:8}} itemStyle={{color:"#fff"}} labelStyle={{color:"#00E5FF", fontWeight:600}} />
                   <Legend wrapperStyle={{fontSize:10}} />
                 </PieChart>
               </ResponsiveContainer>
@@ -204,7 +204,7 @@ export default function Analytics() {
                   <Pie data={gender.accused} dataKey="count" nameKey="gender" outerRadius={70}>
                     {gender.accused.map((_,i) => <Cell key={i} fill={i===0?"#F97316":i===1?"#8B5CF6":"#94A3B8"} />)}
                   </Pie>
-                  <Tooltip contentStyle={{background:"#0B132B", border:"1px solid rgba(0,229,255,0.3)"}} />
+                  <Tooltip contentStyle={{background:"#0B132B", border:"1px solid rgba(0,229,255,0.3)", color:"#fff", borderRadius:8}} itemStyle={{color:"#fff"}} labelStyle={{color:"#00E5FF", fontWeight:600}} />
                   <Legend wrapperStyle={{fontSize:10}} />
                 </PieChart>
               </ResponsiveContainer>

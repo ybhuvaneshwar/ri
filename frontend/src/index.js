@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "@/index.css";
 import App from "@/App";
 import { I18nProvider } from "@/lib/i18n";
+import { ThemeProvider } from "@/lib/theme";
 import { installOffline } from "@/lib/offline";
 
 installOffline();
@@ -13,12 +14,13 @@ const queryClient = new QueryClient({
 });
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
-// Note: StrictMode intentionally disabled — react-leaflet's MapContainer
-// double-mounts under StrictMode in dev, causing "Map is already initialized".
+// StrictMode intentionally disabled — react-leaflet double-mounts in StrictMode dev.
 root.render(
   <QueryClientProvider client={queryClient}>
-    <I18nProvider>
-      <App />
-    </I18nProvider>
+    <ThemeProvider>
+      <I18nProvider>
+        <App />
+      </I18nProvider>
+    </ThemeProvider>
   </QueryClientProvider>,
 );

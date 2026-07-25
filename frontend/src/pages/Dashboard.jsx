@@ -73,7 +73,7 @@ export default function Dashboard() {
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
                 <XAxis dataKey="week" stroke="#94A3B8" fontSize={11} />
                 <YAxis stroke="#94A3B8" fontSize={11} />
-                <Tooltip contentStyle={{background:"#0B132B", border:"1px solid rgba(0,229,255,0.3)", borderRadius:8}} labelStyle={{color:"#00E5FF"}} />
+                <Tooltip contentStyle={{background:"#0B132B", border:"1px solid rgba(0,229,255,0.3)", borderRadius:8, color:"#fff"}} itemStyle={{color:"#fff"}} labelStyle={{color:"#00E5FF", fontWeight:600}} />
                 <Line type="monotone" dataKey="count" stroke="#00E5FF" strokeWidth={2.5} dot={{r:3, fill:"#00E5FF"}} />
               </LineChart>
             </ResponsiveContainer>
@@ -107,7 +107,7 @@ export default function Dashboard() {
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
                 <XAxis type="number" stroke="#94A3B8" fontSize={11} />
                 <YAxis type="category" dataKey="district" stroke="#94A3B8" fontSize={11} width={120} />
-                <Tooltip contentStyle={{background:"#0B132B", border:"1px solid rgba(0,229,255,0.3)", borderRadius:8}} />
+                <Tooltip contentStyle={{background:"#0B132B", border:"1px solid rgba(0,229,255,0.3)", borderRadius:8, color:"#fff"}} itemStyle={{color:"#fff"}} labelStyle={{color:"#00E5FF", fontWeight:600}} />
                 <Bar dataKey="total" fill="#00E5FF" radius={[0,4,4,0]} />
                 <Bar dataKey="critical" fill="#EF4444" radius={[0,4,4,0]} />
               </BarChart>

@@ -2,9 +2,10 @@ import React, { useEffect, useState } from "react";
 import { Outlet, Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
+import { useTheme } from "@/lib/theme";
 import { useLiveSocket } from "@/lib/socket";
 import { flushQueue, getQueue } from "@/lib/offline";
-import { Shield, LayoutDashboard, FileSearch, Bot, LineChart, Network, Map as MapIcon, TrendingUp, FileText, Users as UsersIcon, ScrollText, Upload, LogOut, Command as CmdIcon, Bell, Sparkles, WifiOff, Radio, MessageSquare } from "lucide-react";
+import { Shield, LayoutDashboard, FileSearch, Bot, LineChart, Network, Map as MapIcon, TrendingUp, FileText, Users as UsersIcon, ScrollText, Upload, LogOut, Command as CmdIcon, Bell, Sparkles, WifiOff, Radio, MessageSquare, Sun, Moon } from "lucide-react";
 import { Command, CommandInput, CommandList, CommandItem, CommandGroup, CommandEmpty, CommandDialog } from "@/components/ui/command";
 import { api } from "@/lib/api";
 import AiSidePanel from "@/components/AiSidePanel";
@@ -28,6 +29,7 @@ const NAV_META = [
 export default function AppShell() {
   const { user, logout } = useAuth();
   const { t, lang, setLang } = useI18n();
+  const { theme, toggle: toggleTheme } = useTheme();
   const nav = useNavigate();
   const [cmdOpen, setCmdOpen] = useState(false);
   const [cases, setCases] = useState([]);
@@ -106,9 +108,15 @@ export default function AppShell() {
             <span className="font-mono text-[10px] text-slate-500">⌘K</span>
           </button>
 
-          <div className="flex items-center gap-1 px-1">
-            <button onClick={() => setLang("en")} className={`text-[10px] px-2 py-1 rounded-md ${lang==="en"?"bg-[#00E5FF] text-[#040914] font-semibold":"text-slate-400 hover:text-white"}`} data-testid="lang-en">EN</button>
-            <button onClick={() => setLang("kn")} className={`text-[10px] px-2 py-1 rounded-md ${lang==="kn"?"bg-[#00E5FF] text-[#040914] font-semibold":"text-slate-400 hover:text-white"}`} data-testid="lang-kn">ಕನ್ನಡ</button>
+          <div className="flex items-center justify-between gap-2 px-1">
+            <div className="flex items-center gap-1">
+              <button onClick={() => setLang("en")} className={`text-[10px] px-2 py-1 rounded-md ${lang==="en"?"bg-[#00E5FF] text-[#040914] font-semibold":"text-slate-400 hover:text-white"}`} data-testid="lang-en">EN</button>
+              <button onClick={() => setLang("kn")} className={`text-[10px] px-2 py-1 rounded-md ${lang==="kn"?"bg-[#00E5FF] text-[#040914] font-semibold":"text-slate-400 hover:text-white"}`} data-testid="lang-kn">ಕನ್ನಡ</button>
+            </div>
+            <button onClick={toggleTheme} className="text-[10px] px-2 py-1 rounded-md text-slate-400 hover:text-white border border-white/10 flex items-center gap-1" data-testid="theme-toggle" title={`Switch to ${theme==='dark'?'light':'dark'} mode`}>
+              {theme === "dark" ? <Sun className="w-3 h-3"/> : <Moon className="w-3 h-3"/>}
+              <span>{theme === "dark" ? "Light" : "Dark"}</span>
+            </button>
           </div>
 
           <div className="glass p-3 flex items-center gap-3">
