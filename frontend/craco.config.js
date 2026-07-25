@@ -85,6 +85,33 @@ let webpackConfig = {
     },
     configure: (webpackConfig) => {
 
+      // Silence source-map-loader warnings for node_modules (fixes deck.gl/pako ESM missing .map files)
+      webpackConfig.module.rules.forEach((rule) => {
+        if (Array.isArray(rule.oneOf)) {
+          rule.oneOf.forEach((one) => {
+            if (one.use && Array.isArray(one.use)) {
+              one.use = one.use.filter((u) => {
+                const loader = typeof u === "string" ? u : u.loader;
+                return !loader || !loader.includes("source-map-loader");
+              });
+            }
+          });
+        }
+        if (rule.use && Array.isArray(rule.use)) {
+          rule.use = rule.use.filter((u) => {
+            const loader = typeof u === "string" ? u : u.loader;
+            return !loader || !loader.includes("source-map-loader");
+          });
+        }
+        if (typeof rule.loader === "string" && rule.loader.includes("source-map-loader")) {
+          rule.exclude = /node_modules/;
+        }
+      });
+      webpackConfig.ignoreWarnings = [
+        ...(webpackConfig.ignoreWarnings || []),
+        /Failed to parse source map/,
+      ];
+
       // Add ignored patterns to reduce watched directories
         webpackConfig.watchOptions = {
           ...webpackConfig.watchOptions,
