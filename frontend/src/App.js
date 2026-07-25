@@ -19,6 +19,7 @@ import Reports from "@/pages/Reports";
 import Users from "@/pages/Users";
 import Audit from "@/pages/Audit";
 import Uploads from "@/pages/Uploads";
+import Alerts from "@/pages/Alerts";
 
 function Protected({ children, roles }) {
   const { user, loading } = useAuth();
@@ -48,6 +49,7 @@ function App() {
               <Route path="map" element={<MapIntel />} />
               <Route path="predictions" element={<Predictions />} />
               <Route path="reports" element={<Reports />} />
+              <Route path="alerts" element={<Alerts />} />
               <Route path="users" element={<Protected roles={["admin"]}><Users /></Protected>} />
               <Route path="uploads" element={<Protected roles={["admin","analyst"]}><Uploads /></Protected>} />
               <Route path="audit" element={<Protected roles={["admin","supervisor"]}><Audit /></Protected>} />

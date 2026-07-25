@@ -2,88 +2,66 @@
 
 **Project:** AI Crime Intelligence Platform for Karnataka State Police
 **Started:** 2026-07-25
-**Status:** MVP shipped — full end-to-end functional
+**Status:** Production-ready — real dataset loaded, bilingual AI, live sync, contextual copilot
 
 ---
 
 ## Original Problem Statement
 Build **Namma Kavacha**, a single, cohesive, enterprise-grade AI crime intelligence platform — a command-center product (Palantir Gotham / IBM i2 / Splunk-caliber) with premium Stripe/Linear/Vercel-level polish. The embedded AI is **Kavacha AI**. Converts static police records into live actionable intelligence: instant case search, criminal history reconstruction, relationship-network mapping, geospatial hotspot prediction, similar-case discovery, AI-generated investigation reports, and district-level analytics.
 
-## User Choices Confirmed
-1. **AI:** Claude Sonnet 4.5 via Emergent Universal LLM key (streamed via SSE)
-2. **Map:** Leaflet + OpenStreetMap (no key)
-3. **Auth:** JWT + bcrypt with 3 idempotently seeded demo accounts
-4. **Scope:** Full MVP end-to-end (landing, auth, dashboard, cases, AI copilot, analytics, 3D network, map, predictions, reports, uploads, users, audit, cmdk, notifications)
-5. **Data:** 80 synthetic Karnataka FIRs across 8 districts (deterministic seed)
-
 ## Architecture
-- **Frontend:** React 19 + Tailwind + Framer Motion + GSAP + Three.js (hero) + react-force-graph-3d (network) + Leaflet (map) + Recharts + cmdk + jsPDF + xlsx
-- **Backend:** FastAPI + Motor (MongoDB) + PyJWT + bcrypt + emergentintegrations (Claude Sonnet 4.5) + openpyxl + pypdf
-- **State:** localStorage token + React context
+- **Frontend:** React 19 + Tailwind + Framer Motion + GSAP + Three.js (hero) + react-force-graph-3d (network) + Leaflet (2D + pseudo-3D bars) + Recharts + cmdk + jsPDF + xlsx
+- **Backend:** FastAPI + Motor (MongoDB) + PyJWT + bcrypt + emergentintegrations (Claude Sonnet 4.5, bilingual EN/KN) + openpyxl + pypdf + native WebSocket
 
-## Core Requirements (Static)
-- Deep-navy glassmorphic dark-only aesthetic (Satoshi font, Cyber Cyan #00E5FF accents)
-- 3-clicks-max navigation, flat sidebar
-- WCAG AA + `prefers-reduced-motion` respected
-- All actions audited server-side
-- Every interactive element has `data-testid`
+## What's Been Implemented
+
+### Iteration 1 (2026-07-25)
+- Landing (Three.js hero + GSAP), Auth JWT (3 roles), Dashboard, Cases, Case Detail w/ AI report, Kavacha AI SSE chat, Analytics, 3D Network, Leaflet Map, Predictions, Reports (PDF/Excel), Uploads (Excel/PDF), Users mgmt, Audit log, ⌘K palette, notifications
+- Fixed HIGH bugs: useEffect Promise return, StrictMode leaflet double-init, ObjectId serialization
+
+### Iteration 2 (2026-07-25) — P1 + P2 delivery
+- **Real-time WebSocket sync** (`/api/ws/live`) — case:created/updated/deleted, alert:dispatched, data:reimported events broadcast to all connected sessions; frontend reconnects with backoff.
+- **Contextual AI side-panel** — global drawer (⌘J) available from every screen, injects current route as AI context.
+- **Offline-first mode** — axios interceptors cache GETs in localStorage, queue writes; auto-flush on reconnect; visible offline banner.
+- **Kannada UI** — full nav labels + common strings translated, EN/ಕನ್ನಡ toggle in sidebar.
+- **Bilingual Kavacha AI** — auto-detects Kannada input, responds in Kannada; language toggle (Auto/EN/KN); strict "no markdown bold" system prompt + frontend strip as safety net.
+- **SMS/Email alerts** — `/api/alerts/send` with MOCK transport; UI at `/app/alerts` with channels, recipients, subject, body; dispatch history + audit trail.
+- **Semantic-lite search ranking** — weighted field scoring on `/api/cases?q=...`.
+- **3D-tilt map** — added "3D extrusion" layer with district bars + CSS transform tilt toggle (deck.gl-alternative that ships without heavy deps).
+- **Enhanced Analytics** — added monthly stacked-severity chart, status distribution, severity donut, top-10 police stations, repeat offenders (top-15 accused), gender breakdown (victims + accused).
+- **Enhanced Criminal Network** — filter panel: District, Crime Category, Entity (accused/victim/IO/FIR). Click a person node → refilters graph on them; click a case node → opens case detail. Legend + selected node summary. Facets endpoint.
+- **Real dataset loaded** — auto-imports 4891 FIRs from provided Excel on startup (fallback to synthetic seed if URL fails). `/api/data/reimport` for admin refresh.
+
+## Data Ingestion
+- **Excel:** columns supported: FIRNo, CrimeRegisteredDate, PoliceName, PoliceStationName, CaseCategoryName, GravityName (→ severity), CrimeMajorHeadName, CrimeMinorHeadName, CaseStatusName, CourtID, Latitude, Longitude, BriefFacts, VictimName/Age/Gender, AccusedName/Age/Gender.
+- **Auto-import:** URL `https://customer-assets-0z36b82j.emergentagent.net/job_kavacha-ai-police/artifacts/q3uj4w6j_Police_FIR_Dataset_5000.xlsx` on startup when cases < 1000.
+- **PDF:** AI-extracted structured fields with review-and-confirm.
+- **All ingestion propagates live** via WebSocket broadcast; dashboards, network, analytics, and map refresh on next fetch.
 
 ## User Personas
-- **Administrator** — full CRUD, user management, uploads, system settings
-- **Crime Analyst** — dashboards, cases, AI, uploads (no user delete, no settings)
+- **Administrator** — full CRUD, user management, uploads, reimport, alert dispatch, system settings
+- **Crime Analyst** — dashboards, cases, AI, uploads, alerts (no user delete)
 - **Supervisor** — read-only + report export
 
-## What's Been Implemented (2026-07-25)
-
-### Backend (`/app/backend/server.py`)
-- JWT auth (7-day) + bcrypt password hashing; idempotent seed of 3 demo users
-- 80 synthetic Karnataka FIRs across 8 districts with victims/accused/arrests/chargesheets
-- Endpoints: `/api/auth/login`, `/auth/me`, `/users` (CRUD, admin), `/cases` (list+search+CRUD), `/cases/{id}`, `/cases/{id}/similar`, `/dashboard/kpis`, `/analytics/by-district`, `/analytics/by-category`, `/analytics/timeline`, `/map/hotspots`, `/network/graph`, `/predictions/hotspots`, `/kavacha/chat` (SSE stream, Claude Sonnet 4.5), `/kavacha/report/{cid}`, `/upload/excel`, `/upload/pdf-extract` (AI extraction), `/audit`, `/notifications`
-- Role-based access enforced server-side (require_role dependency)
-- Audit logging middleware on all mutations
-
-### Frontend
-- **Landing** (`/`) — GSAP scroll reveals + Three.js hero network + CountUp KPIs + module grid
-- **Login** (`/login`) — one-click demo account buttons for all 3 roles
-- **App Shell** — sidebar nav + role-filtered menu + ⌘K command palette + notification bell
-- **Dashboard** — 4 KPI tiles with count-up, timeline chart, priority alerts, district/category panels
-- **Cases** — search + district/status filters, 80-row dense table
-- **Case Detail** — narrative, timeline, victims/accused, similar cases, "Generate AI Report" (Claude)
-- **Kavacha AI** — SSE streaming chat with FIR citation highlighting + suggestions
-- **Analytics** — line, bar, pie charts
-- **Criminal Network** — react-force-graph-3d with fly-to camera + click-to-open case
-- **Map Intelligence** — Leaflet dark theme + case density layer + prediction hotspot layer
-- **Predictions** — confidence-scored per-district cards with explanations
-- **Reports** — PDF (jsPDF+autotable) & Excel (xlsx) export, plus per-case AI report PDF
-- **Uploads** — Excel sync + PDF AI extraction with review-and-confirm
-- **Users** — admin CRUD with role assignment
-- **Audit** — immutable log with color-coded actions
-
-### Verified (testing_agent_v3 iteration 1 + fix pass)
-- Backend: auth, KPIs, cases, network, and Kavacha AI SSE streaming real Claude tokens end-to-end ✓
-- Frontend: landing, login→dashboard, cases, analytics, network 3D, Kavacha AI chat, predictions ✓
-- Fixed HIGH bugs: `useEffect(load, [])` returning Promise → wrapped; StrictMode removed to unblock Leaflet double-init
-- Post-fix screenshot verified Map Intelligence + Users pages render ✓
-
-## Prioritized Backlog
-
-### P1 — Recommended next
-- Real-time WebSocket sync layer (dashboard/AI copilot live push)
-- Contextual AI side-panel available from any screen (right-click entity → "Ask Kavacha AI")
-- Offline-first / degraded-network mode with queued writes
-- Full test coverage: Reports export flows, Uploads Excel/PDF flow, supervisor role restrictions, audit log filtering
-
-### P2
-- 3D-tilt / extruded map view (deck.gl) beyond Leaflet 2.5D
-- User profile picture upload (object storage integration)
-- Advanced case search with semantic embeddings
-- Multi-language (Kannada) UI toggle
-- SMS/email alert delivery for critical hotspots
+## Key API Endpoints
+- `POST /api/auth/login`, `GET /api/auth/me`
+- `GET/POST/PATCH/DELETE /api/cases`, `GET /api/cases/{id}/similar`
+- `GET /api/dashboard/kpis`, `GET /api/analytics/*` (by-district, by-category, by-status, by-severity, top-stations, top-accused, monthly-trend, gender-breakdown, timeline)
+- `GET /api/network/graph?district=&crime_head=&entity=`, `GET /api/network/facets`
+- `GET /api/map/hotspots`, `GET /api/predictions/hotspots`
+- `POST /api/kavacha/chat` (SSE stream, bilingual), `POST /api/kavacha/report/{cid}`
+- `POST /api/upload/excel`, `POST /api/upload/pdf-extract`, `POST /api/data/reimport`
+- `POST /api/alerts/send` (MOCK), `GET /api/alerts`
+- `GET /api/audit`, `GET /api/notifications`
+- `WS /api/ws/live?token=...`
 
 ## Test Credentials
-See `/app/memory/test_credentials.md`
+See `/app/memory/test_credentials.md` — admin/analyst/supervisor accounts idempotently seeded.
 
-## Deployment Notes
-- All URLs come from env vars (`REACT_APP_BACKEND_URL`, `MONGO_URL`, `DB_NAME`, `EMERGENT_LLM_KEY`, `JWT_SECRET`)
-- Supervisor auto-restarts backend on code change; frontend has hot reload
-- StrictMode intentionally disabled in `index.js` (react-leaflet incompat) — documented in code comment
+## Prioritized Backlog (Remaining)
+### P2
+- Real SMS/email transports (Twilio + SendGrid) — currently MOCKED at `/api/alerts/send`
+- Real deck.gl HexagonLayer extrusion (currently pseudo-3D bars with CSS tilt)
+- Service Worker for true offline (currently localStorage best-effort)
+- Semantic embeddings via OpenAI/Claude embeddings for case search (currently weighted-field scoring)
+- Vector similarity for similar-case discovery

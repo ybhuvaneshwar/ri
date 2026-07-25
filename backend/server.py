@@ -1,7 +1,7 @@
 """Namma Kavacha — Backend API
 FastAPI + MongoDB + JWT auth + Kavacha AI (Claude Sonnet 4.5 via Emergent LLM key)
 """
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, UploadFile, File
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, UploadFile, File, WebSocket, WebSocketDisconnect, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
@@ -31,6 +31,33 @@ security = HTTPBearer(auto_error=False)
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("kavacha")
+
+# ---------- WEBSOCKET MANAGER ----------
+class WSManager:
+    def __init__(self):
+        self.active: set[WebSocket] = set()
+
+    async def connect(self, ws: WebSocket):
+        await ws.accept()
+        self.active.add(ws)
+
+    def disconnect(self, ws: WebSocket):
+        self.active.discard(ws)
+
+    async def broadcast(self, event: dict):
+        dead = []
+        for ws in list(self.active):
+            try:
+                await ws.send_json(event)
+            except Exception:
+                dead.append(ws)
+        for d in dead:
+            self.active.discard(d)
+
+ws_manager = WSManager()
+
+async def emit(event_type: str, payload: dict):
+    await ws_manager.broadcast({"type": event_type, "payload": payload, "ts": datetime.now(timezone.utc).isoformat()})
 
 # ---------- MODELS ----------
 class LoginRequest(BaseModel):
@@ -182,10 +209,99 @@ async def seed_users():
             # Always reset password to keep demo idempotent
             await db.users.update_one({"email": d["email"]}, {"$set": {"password": pw_hash, "active": True}})
 
+DATASET_URL = "https://customer-assets-0z36b82j.emergentagent.net/job_kavacha-ai-police/artifacts/q3uj4w6j_Police_FIR_Dataset_5000.xlsx"
+
+def _parse_dataset_bytes(content: bytes) -> list[dict]:
+    import openpyxl
+    from collections import defaultdict
+    wb = openpyxl.load_workbook(io.BytesIO(content), read_only=True, data_only=True)
+    ws = wb["FIR_Data"] if "FIR_Data" in wb.sheetnames else wb.active
+    headers = None
+    grouped: dict[str, dict] = {}
+    status_map = {"Chargesheet Filed": "Chargesheeted", "Under Investigation": "Under Investigation",
+                  "Closed": "Closed", "Open": "Open", "Filed": "Chargesheeted"}
+    severity_map = {"Serious": "High", "Less Serious": "Medium", "Very Serious": "Critical",
+                    "Minor": "Low", "Grave": "Critical"}
+    for i, row in enumerate(ws.iter_rows(values_only=True)):
+        if i == 0:
+            headers = row; continue
+        rec = dict(zip(headers, row))
+        fir = str(rec.get("FIRNo") or "").strip()
+        if not fir: continue
+        station = str(rec.get("PoliceStationName") or "").strip() or "Karnataka"
+        try:
+            lat = float(rec.get("Latitude") or 12.97)
+            lng = float(rec.get("Longitude") or 77.59)
+        except Exception:
+            lat, lng = 12.97, 77.59
+        date_raw = rec.get("CrimeRegisteredDate")
+        date_str = str(date_raw)[:10] if date_raw else datetime.now(timezone.utc).date().isoformat()
+        victim = None
+        if rec.get("VictimName"):
+            try: v_age = int(rec.get("VictimAge") or 0)
+            except Exception: v_age = 0
+            victim = {"name": str(rec["VictimName"]), "age": v_age, "gender": str(rec.get("VictimGender") or ""), "contact": ""}
+        accused = None
+        if rec.get("AccusedName"):
+            try: a_age = int(rec.get("AccusedAge") or 0)
+            except Exception: a_age = 0
+            accused = {"name": str(rec["AccusedName"]), "age": a_age, "gender": str(rec.get("AccusedGender") or ""), "status": "Unknown"}
+
+        if fir not in grouped:
+            grouped[fir] = {
+                "id": str(uuid.uuid4()),
+                "fir_no": fir,
+                "title": f"{rec.get('CrimeMinorHeadName') or 'Case'} at {station}",
+                "crime_head": str(rec.get("CrimeMajorHeadName") or "General"),
+                "crime_sub_head": str(rec.get("CrimeMinorHeadName") or ""),
+                "district": station,
+                "unit": station,
+                "status": status_map.get(str(rec.get("CaseStatusName") or ""), str(rec.get("CaseStatusName") or "Open")),
+                "severity": severity_map.get(str(rec.get("GravityName") or ""), "Medium"),
+                "date_registered": date_str,
+                "location": station,
+                "lat": lat, "lng": lng,
+                "description": str(rec.get("BriefFacts") or ""),
+                "victims": [], "accused": [],
+                "complainant": {"name": "", "phone": "", "address": station},
+                "arrests": [],
+                "chargesheet": {"filed_date": date_str, "sections": []} if str(rec.get("CaseStatusName") or "") == "Chargesheet Filed" else None,
+                "io_officer": str(rec.get("PoliceName") or ""),
+                "court": f"Court #{rec.get('CourtID') or ''}",
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "case_category": str(rec.get("CaseCategoryName") or ""),
+                "police_station": station,
+            }
+        if victim and not any(v["name"] == victim["name"] for v in grouped[fir]["victims"]):
+            grouped[fir]["victims"].append(victim)
+        if accused and not any(a["name"] == accused["name"] for a in grouped[fir]["accused"]):
+            grouped[fir]["accused"].append(accused)
+    return list(grouped.values())
+
+async def seed_from_dataset() -> bool:
+    try:
+        import requests
+        content = await asyncio.to_thread(lambda: requests.get(DATASET_URL, timeout=60).content)
+        docs = await asyncio.to_thread(_parse_dataset_bytes, content)
+        if not docs: return False
+        await db.cases.delete_many({})
+        for i in range(0, len(docs), 500):
+            await db.cases.insert_many(docs[i:i+500])
+        logger.info(f"Imported {len(docs)} cases from provided dataset")
+        return True
+    except Exception as e:
+        logger.warning(f"Dataset import failed: {e}")
+        return False
+
 async def seed_cases():
     count = await db.cases.count_documents({})
-    if count >= 50:
+    if count >= 1000:
         return
+    # Try loading the provided real-ish dataset first
+    ok = await seed_from_dataset()
+    if ok:
+        return
+    # Fallback: synthetic 80 cases
     await db.cases.delete_many({})
     random.seed(42)
     statuses = ["Open","Under Investigation","Chargesheeted","Closed"]
@@ -296,6 +412,25 @@ async def list_cases(q: Optional[str] = None, district: Optional[str] = None,
             {"victims.name": {"$regex": q, "$options": "i"}},
         ]
     cases = await db.cases.find(query, {"_id":0}).sort("date_registered", -1).to_list(limit)
+    # Semantic-lite relevance ranking when q is present
+    if q:
+        ql = q.lower()
+        def score(c):
+            s = 0
+            if ql in (c.get("fir_no","") or "").lower(): s += 100
+            if ql in (c.get("title","") or "").lower(): s += 60
+            if ql in (c.get("location","") or "").lower(): s += 40
+            if ql in (c.get("district","") or "").lower(): s += 35
+            if ql in (c.get("crime_head","") or "").lower(): s += 30
+            if ql in (c.get("crime_sub_head","") or "").lower(): s += 30
+            for a in c.get("accused",[]):
+                if ql in (a.get("name","") or "").lower(): s += 45
+            for v in c.get("victims",[]):
+                if ql in (v.get("name","") or "").lower(): s += 25
+            if ql in (c.get("description","") or "").lower(): s += 15
+            if c.get("severity") == "Critical": s += 5
+            return -s
+        cases.sort(key=score)
     return cases
 
 @api.get("/cases/{cid}")
@@ -312,6 +447,7 @@ async def create_case(payload: dict, user: dict = Depends(require_role("admin","
     await db.cases.insert_one(c)
     await log_audit(user, "create", "case", c["id"], c["fir_no"])
     c.pop("_id", None)
+    await emit("case:created", {"id": c["id"], "fir_no": c["fir_no"], "title": c["title"], "district": c["district"], "severity": c["severity"], "by": user["email"]})
     return c
 
 @api.patch("/cases/{cid}")
@@ -320,13 +456,16 @@ async def update_case(cid: str, patch: dict, user: dict = Depends(require_role("
     r = await db.cases.update_one({"id": cid}, {"$set": patch})
     if not r.matched_count: raise HTTPException(404, "Not found")
     await log_audit(user, "update", "case", cid)
-    return await db.cases.find_one({"id": cid}, {"_id":0})
+    updated = await db.cases.find_one({"id": cid}, {"_id":0})
+    await emit("case:updated", {"id": cid, "fir_no": updated.get("fir_no"), "by": user["email"]})
+    return updated
 
 @api.delete("/cases/{cid}")
 async def delete_case(cid: str, user: dict = Depends(require_role("admin"))):
     r = await db.cases.delete_one({"id": cid})
     if not r.deleted_count: raise HTTPException(404, "Not found")
     await log_audit(user, "delete", "case", cid)
+    await emit("case:deleted", {"id": cid, "by": user["email"]})
     return {"ok": True}
 
 # ---------- ROUTES: ANALYTICS / DASHBOARD ----------
@@ -383,20 +522,112 @@ async def hotspots(user: dict = Depends(current_user)):
     cases = await db.cases.find({}, {"_id":0, "lat":1,"lng":1,"district":1,"crime_head":1,"severity":1,"fir_no":1,"id":1,"title":1}).to_list(5000)
     return cases
 
+@api.post("/data/reimport")
+async def data_reimport(user: dict = Depends(require_role("admin"))):
+    ok = await seed_from_dataset()
+    await emit("data:reimported", {"success": ok, "by": user["email"]})
+    await log_audit(user, "reimport", "dataset", details=DATASET_URL[-40:])
+    if not ok: raise HTTPException(500, "Import failed")
+    total = await db.cases.count_documents({})
+    return {"ok": True, "total_cases": total}
+
+@api.get("/analytics/by-status")
+async def by_status(user: dict = Depends(current_user)):
+    rows = await db.cases.aggregate([{"$group":{"_id":"$status","c":{"$sum":1}}},{"$sort":{"c":-1}}]).to_list(20)
+    return [{"status": r["_id"], "count": r["c"]} for r in rows]
+
+@api.get("/analytics/by-severity")
+async def by_severity(user: dict = Depends(current_user)):
+    rows = await db.cases.aggregate([{"$group":{"_id":"$severity","c":{"$sum":1}}}]).to_list(20)
+    return [{"severity": r["_id"], "count": r["c"]} for r in rows]
+
+@api.get("/analytics/top-stations")
+async def top_stations(user: dict = Depends(current_user)):
+    rows = await db.cases.aggregate([{"$group":{"_id":"$district","c":{"$sum":1}}},{"$sort":{"c":-1}},{"$limit":10}]).to_list(10)
+    return [{"station": r["_id"], "count": r["c"]} for r in rows]
+
+@api.get("/analytics/top-accused")
+async def top_accused(user: dict = Depends(current_user)):
+    rows = await db.cases.aggregate([
+        {"$unwind":"$accused"},
+        {"$group":{"_id":"$accused.name","c":{"$sum":1}}},
+        {"$sort":{"c":-1}}, {"$limit":15}
+    ]).to_list(15)
+    return [{"name": r["_id"], "count": r["c"]} for r in rows if r["_id"]]
+
+@api.get("/analytics/monthly-trend")
+async def monthly_trend(months: int = 12, user: dict = Depends(current_user)):
+    now = datetime.now(timezone.utc)
+    since = (now - timedelta(days=months*31)).date().isoformat()
+    cases = await db.cases.find({"date_registered": {"$gte": since}}, {"_id":0,"date_registered":1,"severity":1}).to_list(20000)
+    buckets: Dict[str, Dict[str,int]] = defaultdict(lambda: {"total":0,"critical":0,"high":0})
+    for c in cases:
+        try:
+            d = datetime.fromisoformat(c["date_registered"])
+            mk = f"{d.year}-{d.month:02d}"
+            buckets[mk]["total"] += 1
+            if c.get("severity") == "Critical": buckets[mk]["critical"] += 1
+            elif c.get("severity") == "High": buckets[mk]["high"] += 1
+        except Exception:
+            pass
+    return [{"month": k, **v} for k,v in sorted(buckets.items())]
+
+@api.get("/analytics/gender-breakdown")
+async def gender_breakdown(user: dict = Depends(current_user)):
+    rows = await db.cases.aggregate([
+        {"$unwind":"$victims"},
+        {"$group":{"_id":"$victims.gender","c":{"$sum":1}}}
+    ]).to_list(10)
+    victims = [{"gender": r["_id"] or "Unknown", "count": r["c"]} for r in rows]
+    rows2 = await db.cases.aggregate([
+        {"$unwind":"$accused"},
+        {"$group":{"_id":"$accused.gender","c":{"$sum":1}}}
+    ]).to_list(10)
+    accused = [{"gender": r["_id"] or "Unknown", "count": r["c"]} for r in rows2]
+    return {"victims": victims, "accused": accused}
+
 @api.get("/network/graph")
-async def network_graph(user: dict = Depends(current_user)):
-    cases = await db.cases.find({}, {"_id":0, "id":1,"fir_no":1,"title":1,"accused":1,"district":1,"severity":1}).to_list(2000)
+async def network_graph(district: Optional[str] = None, crime_head: Optional[str] = None,
+                        entity: Optional[str] = None, limit: int = 400,
+                        user: dict = Depends(current_user)):
+    query: Dict[str, Any] = {}
+    if district: query["district"] = district
+    if crime_head: query["crime_head"] = crime_head
+    if entity:
+        query["$or"] = [
+            {"accused.name": {"$regex": entity, "$options": "i"}},
+            {"victims.name": {"$regex": entity, "$options": "i"}},
+            {"io_officer": {"$regex": entity, "$options": "i"}},
+            {"fir_no": {"$regex": entity, "$options": "i"}},
+        ]
+    cases = await db.cases.find(query, {"_id":0, "id":1,"fir_no":1,"title":1,"accused":1,"victims":1,
+                                        "district":1,"severity":1,"crime_head":1,"io_officer":1}).limit(limit).to_list(limit)
     nodes: Dict[str, dict] = {}
     links: List[dict] = []
     for c in cases:
         cn = f"case:{c['id']}"
         nodes[cn] = {"id": cn, "name": c["fir_no"], "type":"case", "district": c["district"],
-                     "severity": c.get("severity","Medium"), "label": c["title"]}
+                     "severity": c.get("severity","Medium"), "label": c["title"], "crime_head": c.get("crime_head","")}
         for a in c.get("accused", []):
-            an = f"person:{a['name']}"
-            nodes[an] = {"id": an, "name": a["name"], "type":"person", "label": a["name"]}
-            links.append({"source": cn, "target": an})
+            an = f"person:{a.get('name','')}"
+            if not a.get("name"): continue
+            nodes[an] = {"id": an, "name": a["name"], "type":"accused", "label": a["name"]}
+            links.append({"source": cn, "target": an, "kind": "accused"})
+        for v in c.get("victims", []):
+            vn = f"victim:{v.get('name','')}"
+            if not v.get("name"): continue
+            nodes[vn] = {"id": vn, "name": v["name"], "type":"victim", "label": v["name"]}
+            links.append({"source": cn, "target": vn, "kind": "victim"})
     return {"nodes": list(nodes.values()), "links": links}
+
+@api.get("/network/facets")
+async def network_facets(user: dict = Depends(current_user)):
+    districts = await db.cases.distinct("district")
+    crime_heads = await db.cases.distinct("crime_head")
+    return {"districts": sorted([d for d in districts if d]),
+            "crime_heads": sorted([c for c in crime_heads if c])}
+
+@api.get("/network/_deprecated_graph")
 
 @api.get("/predictions/hotspots")
 async def predictions(user: dict = Depends(current_user)):
@@ -475,15 +706,26 @@ async def build_kavacha_context(case_id: Optional[str] = None) -> str:
 
 @api.post("/kavacha/chat")
 async def kavacha_chat(payload: ChatMessage, user: dict = Depends(current_user)):
+    import re
     from emergentintegrations.llm.chat import LlmChat, UserMessage, TextDelta, StreamDone
     session_id = payload.session_id or str(uuid.uuid4())
     context = await build_kavacha_context(payload.context_case_id)
+    is_kannada = bool(re.search(r'[\u0C80-\u0CFF]', payload.message))
+    language_rule = ("The user wrote in Kannada. Respond ENTIRELY in Kannada (ಕನ್ನಡ). "
+                     "Use simple, everyday Kannada that a beat officer can read easily. "
+                     "Cite FIR numbers using English format like [FIR/2026/40/02432]."
+                     if is_kannada else
+                     "Respond in clear plain English.")
     system = (
         "You are Kavacha AI, an intelligence copilot for Karnataka State Police officers. "
-        "You help investigators analyze crime patterns, cases, and relationships. "
-        "Always cite specific FIR numbers when referencing cases. Be concise, data-driven, "
-        "and end responses with a 'Next steps' recommendation when appropriate. "
-        "Format citations as [FIR/YYYY/DIS/NNNN]. Use markdown for structure.\n\n"
+        f"{language_rule}\n\n"
+        "STYLE RULES (strict):\n"
+        "- Write in short, human-readable paragraphs. No jargon.\n"
+        "- DO NOT use markdown asterisks like ** or __ for bold. DO NOT use markdown headers (#).\n"
+        "- Use plain sentences and, at most, simple hyphen bullet points (-).\n"
+        "- Cite specific FIR numbers in square brackets exactly like [FIR/2026/40/02432].\n"
+        "- End with a short 'Next steps:' (or 'ಮುಂದಿನ ಹೆಜ್ಜೆಗಳು:' in Kannada) recommendation.\n"
+        "- Be concise and data-driven. No fluff.\n\n"
         f"CURRENT CONTEXT:\n{context}"
     )
     chat = LlmChat(api_key=EMERGENT_LLM_KEY, session_id=session_id, system_message=system).with_model("anthropic","claude-sonnet-4-5-20250929")
@@ -491,9 +733,11 @@ async def kavacha_chat(payload: ChatMessage, user: dict = Depends(current_user))
         try:
             async for ev in chat.stream_message(UserMessage(text=payload.message)):
                 if isinstance(ev, TextDelta):
-                    yield f"data: {json.dumps({'delta': ev.content})}\n\n"
+                    # strip any leaked markdown bold markers as safety net
+                    delta = ev.content.replace("**", "").replace("__", "")
+                    yield f"data: {json.dumps({'delta': delta})}\n\n"
                 elif isinstance(ev, StreamDone):
-                    yield f"data: {json.dumps({'done': True, 'session_id': session_id})}\n\n"
+                    yield f"data: {json.dumps({'done': True, 'session_id': session_id, 'lang': 'kn' if is_kannada else 'en'})}\n\n"
                     break
         except Exception as e:
             logger.exception("Kavacha stream failed")
@@ -611,6 +855,60 @@ async def notifications(user: dict = Depends(current_user)):
 @api.get("/")
 async def root():
     return {"service":"Namma Kavacha","status":"operational","time": datetime.now(timezone.utc).isoformat()}
+
+# ---------- WebSocket live channel ----------
+@app.websocket("/api/ws/live")
+async def ws_live(websocket: WebSocket, token: str = Query(...)):
+    """Live event channel — clients pass ?token=<jwt> for auth."""
+    try:
+        jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGO])
+    except Exception:
+        await websocket.close(code=4401); return
+    await ws_manager.connect(websocket)
+    try:
+        await websocket.send_json({"type":"welcome","payload":{"active": len(ws_manager.active)},"ts": datetime.now(timezone.utc).isoformat()})
+        while True:
+            # Keep-alive; ignore client messages
+            msg = await websocket.receive_text()
+            if msg == "ping":
+                await websocket.send_json({"type":"pong","payload":{},"ts": datetime.now(timezone.utc).isoformat()})
+    except WebSocketDisconnect:
+        ws_manager.disconnect(websocket)
+    except Exception:
+        ws_manager.disconnect(websocket)
+
+# ---------- Alerts (SMS / Email dispatch) — MOCKED transport ----------
+class AlertDispatch(BaseModel):
+    channels: List[str]  # ["sms","email"]
+    recipients: List[str]  # phone or email
+    subject: str = ""
+    body: str
+
+@api.post("/alerts/send")
+async def send_alert(payload: AlertDispatch, user: dict = Depends(require_role("admin","analyst"))):
+    """MOCKED: records the dispatch in DB + audit + broadcasts a notification.
+    Wire Twilio / SendGrid / Emergent transports here to go live."""
+    rec = {
+        "id": str(uuid.uuid4()),
+        "channels": payload.channels,
+        "recipients": payload.recipients,
+        "subject": payload.subject,
+        "body": payload.body,
+        "sent_by": user["email"],
+        "sent_at": datetime.now(timezone.utc).isoformat(),
+        "transport": "MOCK",
+        "delivered": True,
+    }
+    await db.alert_dispatches.insert_one(rec.copy())
+    rec.pop("_id", None)
+    await log_audit(user, "send_alert", "alerts", rec["id"], f"{payload.channels} → {len(payload.recipients)} recipients")
+    await emit("alert:dispatched", {"channels": payload.channels, "recipients_count": len(payload.recipients), "subject": payload.subject})
+    return rec
+
+@api.get("/alerts")
+async def list_alerts(limit: int = 50, user: dict = Depends(require_role("admin","supervisor","analyst"))):
+    rows = await db.alert_dispatches.find({}, {"_id":0}).sort("sent_at",-1).to_list(limit)
+    return rows
 
 app.include_router(api)
 app.add_middleware(CORSMiddleware, allow_credentials=True,
