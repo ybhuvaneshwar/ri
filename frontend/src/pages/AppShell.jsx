@@ -20,7 +20,6 @@ const NAV_META = [
   { to: "map", tKey: "nav.map", icon: MapIcon, roles: ["admin","analyst","supervisor"] },
   { to: "predictions", tKey: "nav.predictions", icon: TrendingUp, roles: ["admin","analyst","supervisor"] },
   { to: "reports", tKey: "nav.reports", icon: FileText, roles: ["admin","analyst","supervisor"] },
-  { to: "alerts", tKey: "nav.alerts", icon: MessageSquare, roles: ["admin","analyst","supervisor"] },
   { to: "uploads", tKey: "nav.uploads", icon: Upload, roles: ["admin","analyst"] },
   { to: "users", tKey: "nav.users", icon: UsersIcon, roles: ["admin"] },
   { to: "audit", tKey: "nav.audit", icon: ScrollText, roles: ["admin","supervisor"] },

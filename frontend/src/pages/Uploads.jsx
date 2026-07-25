@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { api } from "@/lib/api";
-import { Upload, FileSpreadsheet, FileText, Loader2, CheckCircle2 } from "lucide-react";
+import { api, API } from "@/lib/api";
+import { Upload, FileSpreadsheet, FileText, Loader2, CheckCircle2, Download } from "lucide-react";
 import { toast } from "sonner";
 
 export default function Uploads() {
@@ -8,6 +8,24 @@ export default function Uploads() {
   const [pdfBusy, setPdfBusy] = useState(false);
   const [xlsxResult, setXlsxResult] = useState(null);
   const [pdfResult, setPdfResult] = useState(null);
+  const [templateBusy, setTemplateBusy] = useState(false);
+
+  const downloadTemplate = async () => {
+    setTemplateBusy(true);
+    try {
+      const token = localStorage.getItem("nk_token");
+      const res = await fetch(`${API}/data/template`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new Error("Template download failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = "namma-kavacha-template.xlsx";
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+      toast.success("Template downloaded");
+    } catch (e) { toast.error(e.message || "Failed"); }
+    finally { setTemplateBusy(false); }
+  };
 
   const uploadExcel = async (file) => {
     if (!file) return;
@@ -44,16 +62,25 @@ export default function Uploads() {
 
   return (
     <div className="space-y-5" data-testid="uploads-page">
-      <div>
-        <div className="label-eyebrow text-[#00E5FF]">Data Ingestion</div>
-        <h1 className="text-3xl font-bold tracking-tight mt-1">Sync Excel & PDF sources</h1>
-        <p className="text-sm text-slate-400 mt-1">Uploads are validated and applied live — no restarts, no manual refresh.</p>
+      <div className="flex items-end justify-between flex-wrap gap-3">
+        <div>
+          <div className="label-eyebrow text-[#00E5FF]">Data Ingestion</div>
+          <h1 className="text-3xl font-bold tracking-tight mt-1">Sync Excel & PDF sources</h1>
+          <p className="text-sm text-slate-400 mt-1">Uploads are validated and applied live — no restarts, no manual refresh.</p>
+        </div>
+        <button onClick={downloadTemplate} disabled={templateBusy} className="btn-secondary inline-flex items-center gap-2" data-testid="download-template-btn">
+          {templateBusy ? <Loader2 className="w-4 h-4 animate-spin"/> : <Download className="w-4 h-4"/>}
+          Download Excel template
+        </button>
       </div>
 
       <div className="grid md:grid-cols-2 gap-4">
         <div className="glass p-5">
-          <div className="flex items-center gap-2 mb-3"><FileSpreadsheet className="w-5 h-5 text-emerald-400"/><div className="label-eyebrow">Excel sync (CaseMaster sheet)</div></div>
-          <p className="text-xs text-slate-400 mb-3">Upload an .xlsx with a "CaseMaster" sheet: columns include fir_no, title, crime_head, crime_sub_head, district, unit, status, severity, date_registered, location, lat, lng, description.</p>
+          <div className="flex items-center gap-2 mb-3"><FileSpreadsheet className="w-5 h-5 text-emerald-400"/><div className="label-eyebrow">Excel sync</div></div>
+          <p className="text-xs text-slate-400 mb-3">
+            Upload an .xlsx with a <span className="font-mono text-[#00E5FF]">CaseMaster</span> (or <span className="font-mono text-[#00E5FF]">FIR_Data</span>) sheet.
+            Need the columns? Grab the template above.
+          </p>
           <label className="block cursor-pointer">
             <div className="border-2 border-dashed border-white/10 hover:border-[#00E5FF]/40 rounded-xl p-8 text-center transition-colors">
               {xlsxBusy ? <Loader2 className="w-6 h-6 animate-spin mx-auto text-[#00E5FF]"/> : <Upload className="w-6 h-6 mx-auto text-slate-400"/>}

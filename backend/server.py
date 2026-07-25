@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field, EmailStr
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
-import os, uuid, jwt, bcrypt, logging, io, random, json, asyncio
+import os, uuid, jwt, bcrypt, logging, io, random, json, asyncio, hashlib
 from collections import Counter, defaultdict
 
 ROOT_DIR = Path(__file__).parent
@@ -211,6 +211,36 @@ async def seed_users():
 
 DATASET_URL = "https://customer-assets-0z36b82j.emergentagent.net/job_kavacha-ai-police/artifacts/q3uj4w6j_Police_FIR_Dataset_5000.xlsx"
 
+# All 31 Karnataka districts with approximate centroids — used to evenly distribute
+# case markers on the Map Intelligence view instead of clustering around Bengaluru.
+KARNATAKA_DISTRICTS: list[tuple[str, float, float]] = [
+    ("Bengaluru Urban", 12.9716, 77.5946), ("Bengaluru Rural", 13.2846, 77.6871),
+    ("Mysuru", 12.2958, 76.6394), ("Mangaluru", 12.9141, 74.8560),
+    ("Hubballi-Dharwad", 15.3647, 75.1240), ("Belagavi", 15.8497, 74.4977),
+    ("Kalaburagi", 17.3297, 76.8343), ("Tumakuru", 13.3379, 77.1173),
+    ("Shivamogga", 13.9299, 75.5681), ("Vijayapura", 16.8302, 75.7100),
+    ("Ballari", 15.1394, 76.9214), ("Raichur", 16.2076, 77.3463),
+    ("Bidar", 17.9104, 77.5199), ("Chikkamagaluru", 13.3161, 75.7720),
+    ("Hassan", 13.0060, 76.0993), ("Udupi", 13.3409, 74.7421),
+    ("Chitradurga", 14.2251, 76.4009), ("Davanagere", 14.4644, 75.9218),
+    ("Kolar", 13.1372, 78.1298), ("Mandya", 12.5218, 76.8951),
+    ("Chikkaballapura", 13.4355, 77.7315), ("Ramanagara", 12.7159, 77.2775),
+    ("Bagalkote", 16.1862, 75.6961), ("Gadag", 15.4315, 75.6355),
+    ("Haveri", 14.7935, 75.4038), ("Yadgir", 16.7710, 77.1409),
+    ("Koppal", 15.3547, 76.1546), ("Chamarajanagar", 11.9261, 76.9437),
+    ("Uttara Kannada", 14.8027, 74.1279), ("Kodagu", 12.4207, 75.7397),
+    ("Vijayanagara", 15.2650, 76.3803),
+]
+
+def assign_karnataka_district(seed_str: str) -> tuple[str, float, float]:
+    """Deterministically assign a Karnataka district + jittered coords from a seed string."""
+    if not seed_str: seed_str = str(uuid.uuid4())
+    h = int(hashlib.md5(seed_str.encode()).hexdigest(), 16)
+    name, lat, lng = KARNATAKA_DISTRICTS[h % len(KARNATAKA_DISTRICTS)]
+    jx = ((h % 10000) / 10000 - 0.5) * 0.28
+    jy = (((h >> 20) % 10000) / 10000 - 0.5) * 0.28
+    return name, round(lat + jx, 4), round(lng + jy, 4)
+
 def _parse_dataset_bytes(content: bytes) -> list[dict]:
     import openpyxl
     from collections import defaultdict
@@ -229,11 +259,8 @@ def _parse_dataset_bytes(content: bytes) -> list[dict]:
         fir = str(rec.get("FIRNo") or "").strip()
         if not fir: continue
         station = str(rec.get("PoliceStationName") or "").strip() or "Karnataka"
-        try:
-            lat = float(rec.get("Latitude") or 12.97)
-            lng = float(rec.get("Longitude") or 77.59)
-        except Exception:
-            lat, lng = 12.97, 77.59
+        # Evenly distribute cases across all 31 Karnataka districts (seeded by FIR + station)
+        district_name, lat, lng = assign_karnataka_district(f"{fir}-{station}")
         date_raw = rec.get("CrimeRegisteredDate")
         date_str = str(date_raw)[:10] if date_raw else datetime.now(timezone.utc).date().isoformat()
         victim = None
@@ -251,15 +278,15 @@ def _parse_dataset_bytes(content: bytes) -> list[dict]:
             grouped[fir] = {
                 "id": str(uuid.uuid4()),
                 "fir_no": fir,
-                "title": f"{rec.get('CrimeMinorHeadName') or 'Case'} at {station}",
+                "title": f"{rec.get('CrimeMinorHeadName') or 'Case'} at {district_name}",
                 "crime_head": str(rec.get("CrimeMajorHeadName") or "General"),
                 "crime_sub_head": str(rec.get("CrimeMinorHeadName") or ""),
-                "district": station,
-                "unit": station,
+                "district": district_name,
+                "unit": f"{station} PS",
                 "status": status_map.get(str(rec.get("CaseStatusName") or ""), str(rec.get("CaseStatusName") or "Open")),
                 "severity": severity_map.get(str(rec.get("GravityName") or ""), "Medium"),
                 "date_registered": date_str,
-                "location": station,
+                "location": f"{station}, {district_name}",
                 "lat": lat, "lng": lng,
                 "description": str(rec.get("BriefFacts") or ""),
                 "victims": [], "accused": [],
@@ -287,7 +314,8 @@ async def seed_from_dataset() -> bool:
         await db.cases.delete_many({})
         for i in range(0, len(docs), 500):
             await db.cases.insert_many(docs[i:i+500])
-        logger.info(f"Imported {len(docs)} cases from provided dataset")
+        await db.metadata.update_one({"key":"data_version"}, {"$set":{"key":"data_version","value":3,"at":datetime.now(timezone.utc).isoformat()}}, upsert=True)
+        logger.info(f"Imported {len(docs)} cases from provided dataset (v3 · districts + coords spread across Karnataka)")
         return True
     except Exception as e:
         logger.warning(f"Dataset import failed: {e}")
@@ -295,9 +323,10 @@ async def seed_from_dataset() -> bool:
 
 async def seed_cases():
     count = await db.cases.count_documents({})
-    if count >= 1000:
+    version_doc = await db.metadata.find_one({"key":"data_version"})
+    version = (version_doc or {}).get("value", 0)
+    if count >= 1000 and version >= 3:
         return
-    # Try loading the provided real-ish dataset first
     ok = await seed_from_dataset()
     if ok:
         return
@@ -775,32 +804,98 @@ async def upload_excel(file: UploadFile = File(...), user: dict = Depends(requir
     data = await file.read()
     wb = openpyxl.load_workbook(io.BytesIO(data))
     imported = 0; errors: List[str] = []
-    if "CaseMaster" in wb.sheetnames:
-        ws = wb["CaseMaster"]
+    if "CaseMaster" in wb.sheetnames or "FIR_Data" in wb.sheetnames:
+        sheet_name = "CaseMaster" if "CaseMaster" in wb.sheetnames else "FIR_Data"
+        ws = wb[sheet_name]
         headers = [c.value for c in next(ws.iter_rows(min_row=1, max_row=1))]
         for row in ws.iter_rows(min_row=2, values_only=True):
             try:
                 rec = dict(zip(headers, row))
-                if not rec.get("fir_no"): continue
-                # coerce lat/lng if provided
-                lat = float(rec.get("lat") or 12.97)
-                lng = float(rec.get("lng") or 77.59)
-                c = Case(fir_no=str(rec["fir_no"]), title=str(rec.get("title","Imported Case")),
-                         crime_head=str(rec.get("crime_head","Property Crime")),
-                         crime_sub_head=str(rec.get("crime_sub_head","")),
-                         district=str(rec.get("district","Bengaluru City")),
-                         unit=str(rec.get("unit","")),
-                         status=str(rec.get("status","Open")),
-                         severity=str(rec.get("severity","Medium")),
-                         date_registered=str(rec.get("date_registered", datetime.now(timezone.utc).date().isoformat())),
-                         location=str(rec.get("location","")),
-                         lat=lat, lng=lng, description=str(rec.get("description","")))
+                fir_val = rec.get("fir_no") or rec.get("FIRNo")
+                if not fir_val: continue
+                fir_val = str(fir_val)
+                station = str(rec.get("unit") or rec.get("PoliceStationName") or "Karnataka")
+                # Same district assignment as bulk import — even Karnataka spread
+                district_name, lat_a, lng_a = assign_karnataka_district(f"{fir_val}-{station}")
+                # If user provided explicit lat/lng, respect them
+                try:
+                    lat = float(rec.get("lat") or rec.get("Latitude") or lat_a)
+                    lng = float(rec.get("lng") or rec.get("Longitude") or lng_a)
+                except Exception:
+                    lat, lng = lat_a, lng_a
+                c = Case(fir_no=fir_val,
+                         title=str(rec.get("title") or f"{rec.get('CrimeMinorHeadName','') or 'Case'} at {district_name}"),
+                         crime_head=str(rec.get("crime_head") or rec.get("CrimeMajorHeadName") or "Property Crime"),
+                         crime_sub_head=str(rec.get("crime_sub_head") or rec.get("CrimeMinorHeadName") or ""),
+                         district=district_name,
+                         unit=f"{station} PS",
+                         status=str(rec.get("status") or rec.get("CaseStatusName") or "Open"),
+                         severity=str(rec.get("severity") or rec.get("GravityName") or "Medium"),
+                         date_registered=str(rec.get("date_registered") or rec.get("CrimeRegisteredDate") or datetime.now(timezone.utc).date().isoformat())[:10],
+                         location=str(rec.get("location") or f"{station}, {district_name}"),
+                         lat=lat, lng=lng,
+                         description=str(rec.get("description") or rec.get("BriefFacts") or ""))
                 await db.cases.update_one({"fir_no": c.fir_no}, {"$set": c.model_dump()}, upsert=True)
+                await emit("case:created", {"id": c.id, "fir_no": c.fir_no, "title": c.title, "district": c.district, "severity": c.severity, "by": user["email"]})
                 imported += 1
             except Exception as e:
                 errors.append(str(e))
     await log_audit(user, "upload", "excel", details=f"{imported} records")
     return {"imported": imported, "errors": errors[:5]}
+
+@api.get("/data/template")
+async def data_template(user: dict = Depends(current_user)):
+    """Return a starter Excel template with the CaseMaster sheet and example rows."""
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from fastapi.responses import Response
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "CaseMaster"
+    headers = ["fir_no","title","crime_head","crime_sub_head","district","unit","status",
+               "severity","date_registered","location","lat","lng","description"]
+    ws.append(headers)
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="0B132B", end_color="0B132B", fill_type="solid")
+    for i, cell in enumerate(ws[1], start=1):
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal="left")
+        ws.column_dimensions[cell.column_letter].width = max(14, len(headers[i-1]) + 4)
+    # Example rows
+    examples = [
+        ["FIR/2026/BEN/9001","Cyber fraud at Whitefield","Cyber Crime","Online Fraud","Bengaluru Urban",
+         "Whitefield PS","Under Investigation","High","2026-01-15","Whitefield, Bengaluru",
+         12.9698, 77.7500, "Victim received a fraudulent job-offer link and lost Rs. 2.4L."],
+        ["FIR/2026/MYS/9002","Robbery at Devaraja Market","Property Crime","Robbery","Mysuru",
+         "Devaraja Market PS","Open","Critical","2026-02-03","Devaraja Market, Mysuru",
+         12.3067, 76.6547, "Gold jewellery snatched from a passer-by; two accused fled on motorcycle."],
+    ]
+    for row in examples:
+        ws.append(row)
+    # Small instruction sheet
+    ws2 = wb.create_sheet("Instructions")
+    lines = [
+        "Namma Kavacha — Case Import Template",
+        "",
+        "1) Fill one row per FIR in the 'CaseMaster' sheet.",
+        "2) fir_no MUST be unique (existing FIRs will be updated).",
+        "3) severity ∈ {Low, Medium, High, Critical}.",
+        "4) status ∈ {Open, Under Investigation, Chargesheeted, Closed}.",
+        "5) date_registered should be YYYY-MM-DD.",
+        "6) lat/lng are optional — if blank, the case is auto-placed in a Karnataka district.",
+        "7) Upload via Data Ingestion → Excel sync. All changes go live immediately.",
+    ]
+    for i, line in enumerate(lines, 1):
+        ws2.cell(row=i, column=1, value=line)
+    ws2.column_dimensions["A"].width = 90
+    buf = io.BytesIO()
+    wb.save(buf); buf.seek(0)
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": 'attachment; filename="namma-kavacha-template.xlsx"'},
+    )
 
 @api.post("/upload/pdf-extract")
 async def upload_pdf(file: UploadFile = File(...), user: dict = Depends(require_role("admin","analyst"))):
